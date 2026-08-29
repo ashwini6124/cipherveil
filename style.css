@@ -1,0 +1,363 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+:root {
+    --ink: #f5f7ff;
+    --muted: #a8b1c7;
+    --night: #0c1020;
+    --panel: rgba(24, 30, 55, 0.86);
+    --line: rgba(169, 185, 255, 0.22);
+    --lime: #c7ff3d;
+    --pink: #ff4f9a;
+    --blue: #4f7cff;
+    --orange: #ff9f43;
+    --shadow: 0 22px 60px rgba(0, 0, 0, 0.34);
+}
+
+.stApp {
+    color: var(--ink);
+    background:
+        radial-gradient(circle at 7% 2%, rgba(206, 244, 109, 0.753), transparent 22rem),
+        radial-gradient(circle at 100% 18%, rgba(123, 151, 235, 0.858), transparent 27rem),
+        radial-gradient(circle at 80% 100%, rgba(253, 98, 165, 0.18), transparent 25rem),
+        var(--night);
+    font-family: 'DM Sans', sans-serif;
+}
+
+[data-testid='stHeader'] {
+    background: transparent !important;
+}
+
+.stApp::before {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    content: '';
+    opacity: 0.16;
+    background-image:
+        linear-gradient(rgba(199, 255, 61, 0.1) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(199, 255, 61, 0.1) 1px, transparent 1px);
+    background-size: 34px 34px;
+}
+
+.block-container {
+    max-width: 920px;
+    padding: 0.5rem 2rem 4rem;
+}
+
+.site-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.55rem 0 1.35rem;
+    border-bottom: 1px solid var(--line);
+    animation: rise-in 520ms ease both;
+}
+
+.brand-lockup {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.brand-lockup strong,
+h1, h2, h3 {
+    font-family: 'Space Grotesk', sans-serif !important;
+}
+
+.brand-lockup strong {
+    color: var(--ink);
+    font-size: 1.1rem;
+}
+
+.brand-lockup small {
+    margin-left: 0.3rem;
+    color: var(--muted);
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+}
+
+.brand-shield {
+    display: grid;
+    width: 2rem;
+    height: 2rem;
+    place-items: center;
+    color: var(--night);
+    background: var(--lime);
+    border-radius: 3px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.68rem;
+    font-weight: 700;
+    transform: rotate(-7deg);
+    box-shadow: 0 0 20px rgba(199, 255, 61, 0.4);
+}
+
+.nav-status {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    color: var(--lime);
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+}
+
+.pulse-dot {
+    width: 0.48rem;
+    height: 0.48rem;
+    border-radius: 50%;
+    background: var(--lime);
+    box-shadow: 0 0 0 4px rgba(199, 255, 61, 0.13), 0 0 16px var(--lime);
+    animation: pulse 1.8s ease-in-out infinite;
+}
+
+.tool-intro {
+    padding: 4.3rem 0 1.2rem;
+    animation: rise-in 650ms 80ms ease both;
+}
+
+.project-kicker {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    color: var(--lime);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+}
+
+.kicker-rule {
+    width: 2.5rem;
+    height: 1px;
+    background: var(--line);
+}
+
+.tool-intro h1 {
+    margin: 1rem 0 0.9rem !important;
+    color: var(--ink) !important;
+    font-size: clamp(2.8rem, 7vw, 5rem) !important;
+    line-height: 0.98 !important;
+}
+
+.tool-intro h1 em {
+    color: var(--pink);
+    font-style: normal;
+    text-shadow: 0 0 28px rgba(255, 79, 154, 0.3);
+}
+
+.hero-subtitle, .hero-note {
+    color: var(--muted);
+}
+
+.hero-subtitle {
+    max-width: 34rem;
+    margin: 0;
+    font-size: 1.05rem;
+    line-height: 1.5;
+}
+
+.hero-note {
+    max-width: 39rem;
+    padding: 0.8rem 0 1.6rem;
+    border-bottom: 1px solid var(--line);
+    font-size: 0.88rem;
+}
+
+.capability-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    margin: 1.35rem 0 2.15rem;
+    padding: 0.8rem 0;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.capability-row span {
+    padding-right: 0.8rem;
+    border-right: 1px solid var(--line);
+}
+
+.capability-row span:last-child {
+    border-right: 0;
+}
+
+.capability-row b {
+    margin-right: 0.45rem;
+    color: var(--orange);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.68rem;
+}
+
+h1, h2, h3 {
+    color: var(--ink) !important;
+    letter-spacing: 0 !important;
+}
+
+h1 + div p {
+    color: var(--muted);
+}
+
+[data-testid='stVerticalBlockBorderWrapper'] {
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    background: var(--panel);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(14px);
+}
+
+button[data-baseweb='tab'] {
+    padding: 0.75rem 1.25rem !important;
+    color: var(--muted) !important;
+    font-family: 'Space Grotesk', sans-serif !important;
+    font-weight: 700 !important;
+    transition: color 160ms ease, transform 160ms ease;
+}
+
+button[data-baseweb='tab']:hover {
+    color: var(--pink) !important;
+    transform: translateY(-1px);
+}
+
+button[data-baseweb='tab'][aria-selected='true'] {
+    color: var(--lime) !important;
+}
+
+[data-baseweb='tab-highlight'] {
+    background-color: var(--lime) !important;
+    height: 3px !important;
+}
+
+label, [data-testid='stFileUploaderDropzoneInstructions'] {
+    color: var(--ink) !important;
+    font-weight: 600 !important;
+}
+
+[data-baseweb='input'], [data-baseweb='textarea'] {
+    border: 1px solid var(--line) !important;
+    border-radius: 4px !important;
+    background: rgba(8, 11, 24, 0.74) !important;
+    transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+[data-baseweb='input']:focus-within, [data-baseweb='textarea']:focus-within {
+    border-color: var(--lime) !important;
+    box-shadow: 0 0 0 1px var(--lime), 0 0 20px rgba(199, 255, 61, 0.17) !important;
+    transform: translateY(-1px);
+}
+
+textarea, input,
+[data-baseweb='input'] input,
+[data-baseweb='textarea'] textarea {
+    color: #101419 !important;
+    -webkit-text-fill-color: #101419 !important;
+    font-family: 'DM Sans', sans-serif !important;
+}
+
+button[kind='primary'], button[kind='secondary'] {
+    min-height: 2.85rem;
+    border: 0 !important;
+    border-radius: 4px !important;
+    font-family: 'Space Grotesk', sans-serif !important;
+    font-weight: 700 !important;
+    transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+}
+
+button[kind='primary'] {
+    color: var(--night) !important;
+    background: var(--lime) !important;
+    box-shadow: 0 10px 22px rgba(199, 255, 61, 0.2);
+}
+
+button[kind='secondary'] {
+    color: var(--ink) !important;
+    background: rgba(79, 124, 255, 0.24) !important;
+}
+
+button[kind='primary']:hover, button[kind='secondary']:hover {
+    filter: brightness(1.08);
+    transform: translateY(-2px);
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.26);
+}
+
+[data-testid='stFileUploader'] section {
+    border: 1px dashed rgba(199, 255, 61, 0.55);
+    border-radius: 4px;
+    background: rgba(8, 11, 24, 0.45);
+    transition: border-color 160ms ease, background 160ms ease;
+}
+
+[data-testid='stFileUploader'] section:hover {
+    border-color: var(--pink);
+    background: rgba(255, 79, 154, 0.08);
+}
+
+[data-testid='stAlert'] {
+    border-radius: 4px;
+    border-left-width: 4px;
+}
+
+[data-testid='stExpander'] {
+    border-color: var(--line) !important;
+    border-radius: 4px !important;
+    background: rgba(8, 11, 24, 0.42);
+}
+
+[data-testid='stImage'] img {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    box-shadow: var(--shadow);
+}
+
+[data-testid='stDownloadButton'] button {
+    width: 100%;
+}
+
+[data-testid='stTextArea'] textarea {
+    min-height: 8rem;
+}
+
+@keyframes rise-in {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+}
+
+@media (max-width: 640px) {
+    .block-container {
+        padding: 2rem 1rem 3rem;
+    }
+
+    .brand-lockup small {
+        display: none;
+    }
+
+    .tool-intro {
+        padding-top: 3rem;
+    }
+
+    .tool-intro h1 {
+        font-size: 3.25rem !important;
+    }
+
+    .project-kicker {
+        font-size: 0.57rem;
+        letter-spacing: 0.1em;
+    }
+
+    .capability-row {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.8rem 0;
+    }
+
+    .capability-row span:nth-child(2) {
+        border-right: 0;
+    }
+}
