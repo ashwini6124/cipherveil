@@ -1,0 +1,9 @@
+body {
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+  margin: 2rem;
+  color: #111;
+}
+
+header h1 {
+  color: #1a73e8;
+}
