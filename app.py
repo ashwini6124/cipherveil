@@ -1,3 +1,4 @@
+import os
 import streamlit as st
 from PIL import Image
 import numpy as np
@@ -17,6 +18,28 @@ from sklearn.tree import DecisionTreeClassifier
 from scipy.fftpack import dct, idct
 import pandas as pd
 import textwrap
+from dotenv import load_dotenv
+from core import gemini_chat_response, gemini_explain_decision
+
+# =====================================================================
+# ENVIRONMENT & GOOGLE GEMINI CONFIGURATION
+# =====================================================================
+load_dotenv(override=True)
+# =====================================================================
+# GEMINI CONFIGURATION
+# =====================================================================
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
+GEMINI_ENABLED = bool(GEMINI_API_KEY)
+
+TEAM_CREDENTIALS = {
+    "Yamini": "yamini@123",
+    "Riya": "riya@123",
+    "Ashwini": "ashwini@123",
+    "Vaishnavi": "vaishnavi@123",
+}
+TEAM_MEMBERS = ["Yamini", "Riya", "Ashwini", "Vaishnavi"]
+PROJECT_GUIDE = "Prof. Jayash Fating"
 
 # =====================================================================
 # SAFE HTML RENDERER (PREVENTS MARKDOWN INDENTED CODE BLOCK BUG)
@@ -151,6 +174,9 @@ def agent_decide(message, capacity_bits):
 
     return algo, confidence, reasons, feats
 
+# =====================================================================
+# GEMINI-POWERED AGENT NARRATIVE
+# =====================================================================
 # =====================================================================
 # STEGANOGRAPHY CODECS
 # =====================================================================
@@ -357,6 +383,10 @@ if css_file and css_file.exists():
     st.markdown(f"<style>{css_file.read_text(encoding='utf-8')}</style>", unsafe_allow_html=True)
 
 # Session State Initialization
+if "is_authenticated" not in st.session_state:
+    st.session_state.is_authenticated = False
+if "authenticated_user" not in st.session_state:
+    st.session_state.authenticated_user = ""
 if "in_dashboard" not in st.session_state:
     st.session_state.in_dashboard = False
 if "op_history" not in st.session_state:
@@ -368,6 +398,95 @@ if "op_history" not in st.session_state:
     ]
 if "total_ops" not in st.session_state:
     st.session_state.total_ops = 142
+if "chat_messages" not in st.session_state:
+    st.session_state.chat_messages = [
+        {
+            "role": "assistant",
+            "content": "Hi! I am the CipherVeil Assistant. Ask me about this project, coding, cybersecurity, GitHub, or learning concepts.",
+        }
+    ]
+
+if not st.session_state.is_authenticated:
+    render_html(
+        """
+        <div class="flash-screen-wrap">
+            <div class="flash-logo-shield">CV</div>
+            <div class="flash-subtitle"><span class="live-beacon"></span> SECURE TEAM ACCESS // CIPHERVEIL</div>
+            <h1 class="flash-title">CIPHERVEIL</h1>
+            <p class="flash-desc">Authenticate with your team credentials to enter the autonomous steganography command center.</p>
+        </div>
+        """
+    )
+
+    login_col_l, login_col, login_col_r = st.columns([1, 1.2, 1])
+    with login_col:
+        st.markdown("### 🔐 Team Login")
+        with st.form("login_form"):
+            username = st.text_input("Username", placeholder="Enter your team username")
+            password = st.text_input("Password", type="password", placeholder="Enter your password")
+            login_submitted = st.form_submit_button("Enter CipherVeil", type="primary", width="stretch")
+
+        if login_submitted:
+            username_key = username.strip().casefold()
+            credentials = {member.casefold(): member_password for member, member_password in TEAM_CREDENTIALS.items()}
+            if username_key in credentials and credentials[username_key] == password.strip():
+                st.session_state.is_authenticated = True
+                st.session_state.authenticated_user = next(
+                    member for member in TEAM_CREDENTIALS if member.casefold() == username_key
+                )
+                st.rerun()
+            else:
+                st.error("Invalid username or password.")
+
+    st.markdown("### 👥 Project Credits / Contributors")
+    credits_col1, credits_col2 = st.columns(2)
+    with credits_col1:
+        st.markdown("**Team Members**")
+        for member in TEAM_MEMBERS:
+            st.markdown(f"- {member}")
+    with credits_col2:
+        st.markdown("**Project Guide / Mentor**")
+        st.info(PROJECT_GUIDE)
+
+    st.stop()
+
+with st.sidebar:
+    st.markdown("### 🔐 Secure Session")
+    st.caption(f"Signed in as **{st.session_state.authenticated_user}**")
+    if st.button("Log out", key="logout_button", width="stretch"):
+        st.session_state.is_authenticated = False
+        st.session_state.authenticated_user = ""
+        st.session_state.in_dashboard = False
+        st.rerun()
+
+    st.markdown("---")
+    st.markdown("### 👥 Project Credits / Contributors")
+    for member in TEAM_MEMBERS:
+        st.markdown(f"- {member}")
+    st.caption(f"Project Guide / Mentor: {PROJECT_GUIDE}")
+
+    st.markdown("---")
+    st.markdown("### 🤖 Customer Support Assistant")
+    st.caption("Gemini-powered help on every page")
+    if st.button("Clear chat", key="clear_chat_button", width="stretch"):
+        st.session_state.chat_messages = [
+            {
+                "role": "assistant",
+                "content": "Hi! I am the CipherVeil Support Assistant. Tell me what you need help with, and include any visible error message.",
+            }
+        ]
+        st.rerun()
+    for message in st.session_state.chat_messages[-8:]:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    chat_prompt = st.chat_input("Ask a question...", key="cipherveil_chat_input")
+    if chat_prompt:
+        st.session_state.chat_messages.append({"role": "user", "content": chat_prompt})
+        with st.spinner("Thinking..."):
+            chat_answer = gemini_chat_response(st.session_state.chat_messages)
+        st.session_state.chat_messages.append({"role": "assistant", "content": chat_answer})
+        st.rerun()
 
 # =====================================================================
 # VIEW 1: EXECUTIVE CYBER FLASH SCREEN (SPLASH SCREEN)
@@ -413,7 +532,7 @@ if not st.session_state.in_dashboard:
 else:
     # 100% UNIFIED TOP NAVIGATION BAR - NO SPLIT COLUMNS, NO WEIRD WRAPPING
     render_html(
-        """
+        f"""
         <div class="dash-nav">
             <div class="nav-brand">
                 <div class="brand-icon">CV</div>
@@ -424,7 +543,7 @@ else:
                 <div class="telemetry-item"><span class="live-beacon"></span> <strong>SYSTEM ONLINE</strong></div>
                 <div class="telemetry-item">MODEL: <strong>DECISION TREE v2.4</strong></div>
                 <div class="telemetry-item">CRYPTO: <strong>256-BIT DUAL ENGINE</strong></div>
-                <div class="telemetry-item">LATENCY: <strong>12.4ms</strong></div>
+                <div class="telemetry-item">GEMINI: <strong>{'ONLINE' if GEMINI_ENABLED else 'NOT CONFIGURED'}</strong></div>
             </div>
         </div>
         """
@@ -753,6 +872,9 @@ else:
         st.markdown("### 🔒 Conceal Secret Data Inside Carrier Medium")
         st.caption("Upload your cover carrier, input your secret message, and let the AI Agent select the optimal encryption and embedding strategy.")
 
+        if not GEMINI_ENABLED:
+            st.caption("💡 Add a GEMINI_API_KEY in your .env file to enable AI-narrated agent reasoning below.")
+
         hide_left, hide_right = st.columns([1, 1])
 
         with hide_left:
@@ -840,6 +962,29 @@ else:
             with res_col2:
                 st.success(f"**Embedding Method Selected:** `{embed_method}`\n\n**SHA-256 Digest:** `{msg_hash[:20]}...`")
                 st.code(f"SHA-256: {msg_hash}", language="text")
+
+            # ---------------------------------------------------------------
+            # GEMINI AI AGENT NARRATIVE — turns the raw decision-tree stats
+            # into a natural-language rationale, so the agent's reasoning is
+            # front-and-center rather than a footnote to the crypto pipeline.
+            # ---------------------------------------------------------------
+            st.markdown("#### 🧠 AI Agent Narrative")
+            if GEMINI_ENABLED:
+                with st.spinner("Gemini is narrating the agent's decision..."):
+                    GEMINI_narrative = gemini_explain_decision(feats, algo, confidence, embed_method)
+                if GEMINI_narrative:
+                    render_html(
+                        f"""
+                        <div style="background:rgba(15,23,45,0.85); border:1px solid rgba(0,210,255,0.25);
+                                    border-radius:10px; padding:1rem 1.2rem; color:#e2e8f0; line-height:1.7;">
+                            {GEMINI_narrative}
+                        </div>
+                        """
+                    )
+                else:
+                    st.caption("Gemini returned no narrative for this payload — falling back to the rule-based reasoning above.")
+            else:
+                st.caption("💡 Add a GEMINI_API_KEY in your .env file to enable AI-narrated agent reasoning.")
 
             payload = f"{algo}|{embed_method}|{encrypted}|{msg_hash}"
 
@@ -976,7 +1121,7 @@ else:
 
 
     # =====================================================================
-    # TAB 4: STEGANALYSIS & CARRIER BENCHMARKS
+    # TAB 4: STEGANOGRAPHY CODECS
     # =====================================================================
     with tab_benchmarks:
         st.markdown("### 📊 Steganalysis, Carrier Capacity & Fidelity Benchmarks")
@@ -1041,11 +1186,12 @@ else:
 
         with spec_col2:
             render_html(
-                """
+                f"""
                 <div style="background:rgba(15,23,45,0.85); border:1px solid rgba(148,163,184,0.18); border-radius:10px; padding:1.4rem;">
                     <h4 style="margin-top:0; color:#00d2ff !important;">🔐 Cryptographic Engine Specifications</h4>
                     <p style="font-size:0.85rem; color:#cbd5e1; line-height:1.6;">
-                        CipherVeil deploys authenticated hardware-grade primitives to prevent side-channel leakage and guarantee zero-tamper integrity.
+                        CipherVeil deploys authenticated hardware-grade primitives to prevent side-channel leakage and guarantee zero-tamper integrity. Agent
+                        reasoning is optionally narrated in natural language via Google Gemini ({GEMINI_MODEL}).
                     </p>
                     <div style="font-family:'JetBrains Mono'; font-size:0.82rem; background:rgba(8,12,24,0.9); padding:0.9rem; border-radius:6px; border:1px solid rgba(168,85,247,0.25); color:#e2e8f0; line-height:1.8;">
                         <strong>Key Derivation:</strong> PBKDF2 (HMAC-SHA256, 100,000 Rounds)<br>
@@ -1054,7 +1200,8 @@ else:
                         <strong>Stream Engine:</strong> ChaCha20 Stream Cipher (256-Bit Key, 64-Bit Nonce)<br>
                         <strong>Tamper Verification:</strong> SHA-256 (256-bit Digest FIPS 180-4)<br>
                         <strong>Frequency Space:</strong> 2D Discrete Cosine Transform (DCT-2)<br>
-                        <strong>Unicode Zero-Width:</strong> \u200b (0-Bit) & \u200c (1-Bit)
+                        <strong>Unicode Zero-Width:</strong> \u200b (0-Bit) & \u200c (1-Bit)<br>
+                        <strong>Agent Narrative Engine:</strong> Google Gemini ({'configured' if GEMINI_ENABLED else 'not configured'})
                     </div>
                 </div>
                 """

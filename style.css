@@ -73,6 +73,53 @@ code, pre, .mono-font {
     font-family: 'JetBrains Mono', monospace !important;
 }
 
+/* Readable Streamlit text and password fields */
+div[data-baseweb='input'] {
+    background-color: #ffffff !important;
+    border-color: rgba(0, 210, 255, 0.45) !important;
+}
+
+div[data-baseweb='input'] input,
+div[data-baseweb='textarea'] textarea,
+input[type='text'],
+input[type='password'] {
+    color: #000000 !important;
+    background-color: #ffffff !important;
+    -webkit-text-fill-color: #000000 !important;
+    caret-color: #000000 !important;
+}
+
+div[data-baseweb='input'] input::placeholder,
+div[data-baseweb='textarea'] textarea::placeholder,
+input[type='text']::placeholder,
+input[type='password']::placeholder {
+    color: #000000 !important;
+    -webkit-text-fill-color: #000000 !important;
+    opacity: 1 !important;
+}
+
+div[data-baseweb='input']:focus-within,
+div[data-baseweb='textarea']:focus-within {
+    border-color: #00d2ff !important;
+    box-shadow: 0 0 0 1px #00d2ff, 0 0 16px rgba(0, 210, 255, 0.22) !important;
+}
+
+/* Sidebar customer-support chat input */
+div[data-testid='stChatInput'] textarea,
+div[data-testid='stChatInput'] input {
+    color: #000000 !important;
+    background-color: #ffffff !important;
+    -webkit-text-fill-color: #000000 !important;
+    caret-color: #000000 !important;
+}
+
+div[data-testid='stChatInput'] textarea::placeholder,
+div[data-testid='stChatInput'] input::placeholder {
+    color: #000000 !important;
+    -webkit-text-fill-color: #000000 !important;
+    opacity: 1 !important;
+}
+
 /* =====================================================================
    FLASH SCREEN / SPLASH SCREEN OVERLAY STYLES
    ===================================================================== */
