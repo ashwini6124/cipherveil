@@ -30,7 +30,7 @@ load_dotenv(override=True)
 # GEMINI CONFIGURATION
 # =====================================================================
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.6-flash").strip()
 GEMINI_ENABLED = bool(GEMINI_API_KEY)
 
 TEAM_CREDENTIALS = {

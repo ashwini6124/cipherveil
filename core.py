@@ -1,8 +1,10 @@
 import base64
 import hashlib
+import logging
 import math
 import os
 import random
+import time
 
 import numpy as np
 from dotenv import load_dotenv
@@ -13,6 +15,8 @@ from Crypto.Protocol.KDF import PBKDF2
 from Crypto.Random import get_random_bytes
 from scipy.fftpack import dct, idct
 from sklearn.tree import DecisionTreeClassifier
+
+logger = logging.getLogger(__name__)
 
 
 # Cryptography
@@ -112,7 +116,7 @@ def agent_decide(message, capacity_bits):
 def gemini_explain_decision(feats, algorithm, confidence, embed_method=None):
     load_dotenv(override=True)
     api_key = os.getenv("GEMINI_API_KEY", "").strip()
-    model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
+    model = os.getenv("GEMINI_MODEL", "gemini-3.6-flash").strip()
     if not api_key:
         return None
 
@@ -132,22 +136,63 @@ Write it as flowing prose a security analyst would find credible, not a
 bulleted restatement of the numbers.
 """.strip()
 
-    try:
-        with genai.Client(api_key=api_key) as client:
-            response = client.models.generate_content(
-                model=model,
-                contents=prompt,
+    fallback_capacity = feats["capacity_ratio"] * 100
+    key_size = "256-bit"
+    fallback = (
+        f"Payload analyzed and secured using {algorithm} ({key_size}) - "
+        f"utilizing {fallback_capacity:.4f}% of available carrier capacity."
+    )
+
+    max_attempts = 4
+    for attempt in range(max_attempts):
+        try:
+            with genai.Client(api_key=api_key) as client:
+                response = client.models.generate_content(
+                    model=model,
+                    contents=prompt,
+                )
+                text = (response.text or "").strip()
+            return text if text else fallback
+        except Exception:
+            logger.exception(
+                "Gemini narrative request failed on attempt %d/%d",
+                attempt + 1,
+                    max_attempts,
             )
-            text = (response.text or "").strip()
-        return text if text else None
-    except Exception as error:
-        return f"(Gemini narrative unavailable: {error})"
+            if attempt < max_attempts - 1:
+                time.sleep(2 ** attempt)
+
+    return fallback
+
+
+CHATBOT_STATIC_RESPONSES = {
+    "login": {
+        "keywords": ("login", "log in", "sign in", "password", "credential"),
+        "answer": "For login issues, use your exact team username and password, then refresh the page. Never share your password in chat.",
+    },
+    "concealment": {
+        "keywords": ("conceal", "hide", "embed", "embedding", "carrier"),
+        "answer": "To conceal data, choose a supported carrier, enter the message and master password, then confirm the carrier has enough capacity. Images may use LSB or DCT embedding.",
+    },
+    "extraction": {
+        "keywords": ("extract", "extraction", "decrypt", "decode", "hidden message"),
+        "answer": "Extraction requires the protected carrier and the original master password. A wrong password, altered file, unsupported format, or missing payload marker can cause it to fail.",
+    },
+    "ai_routing": {
+        "keywords": ("ai routing", "routing", "decision tree", "route", "recommendation"),
+        "answer": "CipherVeil's decision tree uses payload length, Shannon entropy, and carrier capacity to recommend AES or ChaCha20. Gemini explains the decision but does not choose the cipher.",
+    },
+    "encryption_steganography": {
+        "keywords": ("encrypt", "encryption", "aes", "chacha", "steganography", "steg", "lsb", "dct", "zero-width"),
+        "answer": "CipherVeil encrypts the payload before hiding it. AES-256-GCM is used for compact data, while ChaCha20 is used for denser or longer data; carriers can use LSB, DCT, or zero-width text techniques.",
+    },
+}
 
 
 def gemini_chat_response(messages):
     load_dotenv(override=True)
     api_key = os.getenv("GEMINI_API_KEY", "").strip()
-    model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
+    model = os.getenv("GEMINI_MODEL", "gemini-3.6-flash").strip()
     if not api_key:
         return "Gemini is not configured. Add GEMINI_API_KEY to your environment before chatting."
 
@@ -217,17 +262,40 @@ verify it. Keep answers concise unless the user asks for detail.
         for message in messages[-12:]
     ]
 
-    try:
-        with genai.Client(api_key=api_key) as client:
-            response = client.models.generate_content(
-                model=model,
-                contents=conversation,
-                config={"system_instruction": system_instruction},
+    max_attempts = 4
+    for attempt in range(max_attempts):
+        try:
+            with genai.Client(api_key=api_key) as client:
+                response = client.models.generate_content(
+                    model=model,
+                    contents=conversation,
+                    config={"system_instruction": system_instruction},
+                )
+                text = (response.text or "").strip()
+            return text if text else "I could not generate a response. Please try asking in another way."
+        except Exception:
+            logger.exception(
+                "Gemini chatbot request failed on attempt %d/%d",
+                attempt + 1,
+                max_attempts,
             )
-            text = (response.text or "").strip()
-        return text if text else "I could not generate a response. Please try asking in another way."
-    except Exception as error:
-        return f"Gemini chatbot unavailable: {error}"
+            if attempt < max_attempts - 1:
+                time.sleep(2 ** attempt)
+
+    latest_user_message = next(
+        (
+            message["content"]
+            for message in reversed(messages)
+            if message.get("role") == "user"
+        ),
+        "",
+    )
+    normalized_message = latest_user_message.casefold()
+    for topic in CHATBOT_STATIC_RESPONSES.values():
+        if any(keyword in normalized_message for keyword in topic["keywords"]):
+            return topic["answer"]
+
+    return "I'm having trouble reaching the AI assistant right now - please try again in a moment, or check the FAQ section."
 
 
 # Steganography
