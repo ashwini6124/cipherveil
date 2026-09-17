@@ -20,6 +20,7 @@ import pandas as pd
 import textwrap
 from dotenv import load_dotenv
 from core import gemini_chat_response, gemini_explain_decision
+from cipherveil_sidebar_theme import inject_sidebar_theme, CHATBOT_CARD_HTML, SESSION_BADGE_HTML
 
 # =====================================================================
 # ENVIRONMENT & GOOGLE GEMINI CONFIGURATION
@@ -40,6 +41,11 @@ TEAM_CREDENTIALS = {
 }
 TEAM_MEMBERS = ["Yamini", "Riya", "Ashwini", "Vaishnavi"]
 PROJECT_GUIDE = "Prof. Jayash Fating"
+CHATBOT_NAME = "VeilBot"
+CHATBOT_GREETING = (
+    "Hi! I am VeilBot, your CipherVeil Support Assistant. "
+    "Tell me what you need help with, and include any visible error message."
+)
 
 # =====================================================================
 # SAFE HTML RENDERER (PREVENTS MARKDOWN INDENTED CODE BLOCK BUG)
@@ -376,6 +382,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed",
 )
+inject_sidebar_theme()
 
 # Apply CSS
 css_file = load_app_css()
@@ -402,9 +409,16 @@ if "chat_messages" not in st.session_state:
     st.session_state.chat_messages = [
         {
             "role": "assistant",
-            "content": "Hi! I am the CipherVeil Assistant. Ask me about this project, coding, cybersecurity, GitHub, or learning concepts.",
+            "content": CHATBOT_GREETING,
         }
     ]
+elif st.session_state.chat_messages and st.session_state.chat_messages[0]["role"] == "assistant":
+    old_greetings = (
+        "Hi! I am the CipherVeil Assistant. Ask me about this project, coding, cybersecurity, GitHub, or learning concepts.",
+        "Hi! I am the CipherVeil Support Assistant. Tell me what you need help with, and include any visible error message.",
+    )
+    if st.session_state.chat_messages[0]["content"] in old_greetings:
+        st.session_state.chat_messages[0]["content"] = CHATBOT_GREETING
 
 if not st.session_state.is_authenticated:
     render_html(
@@ -451,7 +465,7 @@ if not st.session_state.is_authenticated:
     st.stop()
 
 with st.sidebar:
-    st.markdown("### 🔐 Secure Session")
+    st.markdown(SESSION_BADGE_HTML, unsafe_allow_html=True)
     st.caption(f"Signed in as **{st.session_state.authenticated_user}**")
     if st.button("Log out", key="logout_button", width="stretch"):
         st.session_state.is_authenticated = False
@@ -466,13 +480,12 @@ with st.sidebar:
     st.caption(f"Project Guide / Mentor: {PROJECT_GUIDE}")
 
     st.markdown("---")
-    st.markdown("### 🤖 Customer Support Assistant")
-    st.caption("Gemini-powered help on every page")
+    st.markdown(CHATBOT_CARD_HTML, unsafe_allow_html=True)
     if st.button("Clear chat", key="clear_chat_button", width="stretch"):
         st.session_state.chat_messages = [
             {
                 "role": "assistant",
-                "content": "Hi! I am the CipherVeil Support Assistant. Tell me what you need help with, and include any visible error message.",
+                "content": CHATBOT_GREETING,
             }
         ]
         st.rerun()

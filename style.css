@@ -120,6 +120,49 @@ div[data-testid='stChatInput'] input::placeholder {
     opacity: 1 !important;
 }
 
+/* VeilBot sidebar card */
+.cv-chatbot-card {
+    background: linear-gradient(145deg, rgba(15, 20, 32, 0.98), rgba(21, 27, 43, 0.98));
+    border: 1px solid rgba(120, 180, 255, 0.25);
+    border-radius: 14px;
+    padding: 16px 18px;
+    margin-top: 10px;
+    box-shadow: 0 0 18px rgba(60, 130, 255, 0.08);
+}
+
+.cv-chatbot-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+
+.cv-chatbot-badge {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #4fc3f7, #1565c0);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    box-shadow: 0 0 10px rgba(79, 195, 247, 0.5);
+}
+
+.cv-chatbot-name {
+    font-weight: 700;
+    font-size: 16px;
+    color: #e8f1ff;
+    letter-spacing: 0.3px;
+}
+
+.cv-chatbot-subtitle {
+    font-size: 12.5px;
+    color: #8ea3c4;
+    margin-left: 44px;
+    margin-top: -2px;
+}
+
 /* =====================================================================
    FLASH SCREEN / SPLASH SCREEN OVERLAY STYLES
    ===================================================================== */
