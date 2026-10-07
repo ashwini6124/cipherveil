@@ -1,4 +1,5 @@
 import os
+import hmac
 import streamlit as st
 from PIL import Image
 import numpy as np
@@ -14,6 +15,7 @@ import time
 import json
 from datetime import datetime
 from pathlib import Path
+from streamlit.errors import StreamlitSecretNotFoundError
 from sklearn.tree import DecisionTreeClassifier
 from scipy.fftpack import dct, idct
 import pandas as pd
@@ -21,24 +23,20 @@ import textwrap
 from dotenv import load_dotenv
 from core import gemini_chat_response, gemini_explain_decision
 from cipherveil_sidebar_theme import inject_sidebar_theme, CHATBOT_CARD_HTML, SESSION_BADGE_HTML
+from activity_store import (
+    ActivityStoreError,
+    get_team_activity,
+    get_user_activity,
+    record_activity,
+    register_account,
+    sign_in,
+)
 
 # =====================================================================
 # ENVIRONMENT & GOOGLE GEMINI CONFIGURATION
 # =====================================================================
 load_dotenv(override=True)
-# =====================================================================
-# GEMINI CONFIGURATION
-# =====================================================================
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.6-flash").strip()
-GEMINI_ENABLED = bool(GEMINI_API_KEY)
 
-TEAM_CREDENTIALS = {
-    "Yamini": "yamini@123",
-    "Riya": "riya@123",
-    "Ashwini": "ashwini@123",
-    "Vaishnavi": "vaishnavi@123",
-}
 TEAM_MEMBERS = ["Yamini", "Riya", "Ashwini", "Vaishnavi"]
 PROJECT_GUIDE = "Prof. Jayash Fating"
 CHATBOT_NAME = "VeilBot"
@@ -382,6 +380,85 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed",
 )
+
+AUTH_INPUT_KEYS = (
+    "login_email_input",
+    "login_password_input",
+    "signup_email_input",
+    "signup_password_input",
+    "signup_password_confirm_input",
+)
+SENSITIVE_SESSION_KEYS = AUTH_INPUT_KEYS + (
+    "secret_message_input",
+    "secret_password_input",
+    "extract_password_input",
+    "cover_file_uploader",
+    "stego_file_uploader",
+    "cipherveil_chat_input",
+    "team_audit_password_input",
+)
+if st.session_state.pop("clear_auth_inputs_on_rerun", False):
+    for input_key in AUTH_INPUT_KEYS:
+        st.session_state.pop(input_key, None)
+
+
+def get_setting(name, default=""):
+    try:
+        value = st.secrets.get(name)
+    except StreamlitSecretNotFoundError:
+        value = None
+    if value is None or value == "":
+        value = os.getenv(name, default)
+    if value is None:
+        return default
+    if isinstance(value, list):
+        return value
+    return str(value).strip()
+
+
+SUPABASE_URL = get_setting("SUPABASE_URL")
+SUPABASE_ANON_KEY = get_setting("SUPABASE_ANON_KEY")
+SUPABASE_SERVICE_ROLE_KEY = get_setting("SUPABASE_SERVICE_ROLE_KEY")
+TEAM_AUDIT_PASSWORD = get_setting("TEAM_AUDIT_PASSWORD")
+configured_audit_emails = get_setting("TEAM_AUDIT_EMAILS", [])
+if isinstance(configured_audit_emails, list):
+    TEAM_AUDIT_EMAILS = {
+        str(email).strip().casefold() for email in configured_audit_emails if str(email).strip()
+    }
+else:
+    TEAM_AUDIT_EMAILS = {
+        email.strip().casefold()
+        for email in str(configured_audit_emails).split(",")
+        if email.strip()
+    }
+GEMINI_API_KEY = get_setting("GEMINI_API_KEY")
+GEMINI_MODEL = get_setting("GEMINI_MODEL", "gemini-3.6-flash")
+GEMINI_ENABLED = bool(GEMINI_API_KEY)
+AUTH_CONFIGURED = all(
+    (SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY)
+)
+
+
+def save_activity(user_id, user_email, activity, defer_warning=False, **details):
+    try:
+        record_activity(
+            SUPABASE_URL,
+            SUPABASE_SERVICE_ROLE_KEY,
+            user_id=user_id,
+            user_email=user_email,
+            activity=activity,
+            **details,
+        )
+    except ActivityStoreError as error:
+        message = (
+            f"The action completed, but its activity record could not be saved: {error}"
+        )
+        if defer_warning:
+            st.session_state["pending_activity_warning"] = message
+        else:
+            st.warning(message)
+
+
 inject_sidebar_theme()
 
 # Apply CSS
@@ -394,17 +471,18 @@ if "is_authenticated" not in st.session_state:
     st.session_state.is_authenticated = False
 if "authenticated_user" not in st.session_state:
     st.session_state.authenticated_user = ""
+if "authenticated_user_id" not in st.session_state:
+    st.session_state.authenticated_user_id = ""
 if "in_dashboard" not in st.session_state:
     st.session_state.in_dashboard = False
-if "op_history" not in st.session_state:
-    st.session_state.op_history = [
-        {"Time": "09:42:15", "Type": "Conceal", "Carrier": "Image (RGB PNG)", "Codec": "DCT Frequency", "Cipher": "AES-256-GCM", "Bits": "1,424", "Hash": "4f8a9e...2c1", "Integrity": "VERIFIED"},
-        {"Time": "09:18:04", "Type": "Conceal", "Carrier": "Audio (MP3 Stream)", "Codec": "Binary Append", "Cipher": "ChaCha20", "Bits": "3,896", "Hash": "e7b1a2...99d", "Integrity": "VERIFIED"},
-        {"Time": "08:55:22", "Type": "Extract", "Carrier": "Text (Zero-Width)", "Codec": "Unicode Gap", "Cipher": "AES-256-GCM", "Bits": "864", "Hash": "90d34f...aa5", "Integrity": "VERIFIED"},
-        {"Time": "08:12:47", "Type": "Extract", "Carrier": "Image (Spatial LSB)", "Codec": "LSB Plane 0", "Cipher": "AES-256-GCM", "Bits": "640", "Hash": "33b71c...10f", "Integrity": "VERIFIED"},
-    ]
+if "team_audit_unlocked" not in st.session_state:
+    st.session_state.team_audit_unlocked = False
 if "total_ops" not in st.session_state:
-    st.session_state.total_ops = 142
+    st.session_state.total_ops = 0
+if "pending_activity_warning" in st.session_state:
+    st.warning(st.session_state.pop("pending_activity_warning"))
+if "account_confirmation_message" in st.session_state:
+    st.success(st.session_state.pop("account_confirmation_message"))
 if "chat_messages" not in st.session_state:
     st.session_state.chat_messages = [
         {
@@ -427,30 +505,128 @@ if not st.session_state.is_authenticated:
             <div class="flash-logo-shield">CV</div>
             <div class="flash-subtitle"><span class="live-beacon"></span> SECURE TEAM ACCESS // CIPHERVEIL</div>
             <h1 class="flash-title">CIPHERVEIL</h1>
-            <p class="flash-desc">Authenticate with your team credentials to enter the autonomous steganography command center.</p>
+            <p class="flash-desc">Team members can sign in with their email. New users can create an account with an email address and password.</p>
         </div>
         """
     )
 
     login_col_l, login_col, login_col_r = st.columns([1, 1.2, 1])
     with login_col:
-        st.markdown("### 🔐 Team Login")
-        with st.form("login_form"):
-            username = st.text_input("Username", placeholder="Enter your team username")
-            password = st.text_input("Password", type="password", placeholder="Enter your password")
-            login_submitted = st.form_submit_button("Enter CipherVeil", type="primary", width="stretch")
+        st.markdown("#### 👥 CipherVeil team")
+        st.markdown("**Yamini · Riya · Ashwini · Vaishnavi**")
+        st.caption(
+            "Team members: sign in with the email and password for your account. "
+            "New here? Choose **Create account** and register with your email."
+        )
+        if not AUTH_CONFIGURED:
+            st.caption(
+                "Email sign-in and account creation will be available after the "
+                "app is connected to its account service."
+            )
 
-        if login_submitted:
-            username_key = username.strip().casefold()
-            credentials = {member.casefold(): member_password for member, member_password in TEAM_CREDENTIALS.items()}
-            if username_key in credentials and credentials[username_key] == password.strip():
-                st.session_state.is_authenticated = True
-                st.session_state.authenticated_user = next(
-                    member for member in TEAM_CREDENTIALS if member.casefold() == username_key
+        signin_tab, signup_tab = st.tabs(["Sign in", "Create account"])
+        with signin_tab:
+            st.markdown("### 🔐 Sign in")
+            with st.form("login_form"):
+                login_email = st.text_input(
+                    "Email", placeholder="you@example.com", key="login_email_input"
                 )
-                st.rerun()
-            else:
-                st.error("Invalid username or password.")
+                login_password = st.text_input(
+                    "Password", type="password", key="login_password_input"
+                )
+                login_submitted = st.form_submit_button(
+                    "Enter CipherVeil",
+                    type="primary",
+                    width="stretch",
+                    disabled=not AUTH_CONFIGURED,
+                )
+
+            if login_submitted:
+                try:
+                    response = sign_in(
+                        SUPABASE_URL,
+                        SUPABASE_ANON_KEY,
+                        login_email.strip(),
+                        login_password,
+                    )
+                    user = response["user"]
+                    st.session_state.is_authenticated = True
+                    st.session_state.authenticated_user = user.get("email", login_email.strip())
+                    st.session_state.authenticated_user_id = user["id"]
+                    save_activity(
+                        user["id"],
+                        st.session_state.authenticated_user,
+                        "Signed in",
+                        defer_warning=True,
+                    )
+                    st.session_state.clear_auth_inputs_on_rerun = True
+                    st.rerun()
+                except (ActivityStoreError, KeyError) as error:
+                    st.error(f"Sign-in failed: {error}")
+
+        with signup_tab:
+            st.markdown("### ✨ Create an account")
+            with st.form("signup_form"):
+                signup_email = st.text_input(
+                    "Email address",
+                    placeholder="you@example.com",
+                    key="signup_email_input",
+                )
+                signup_password = st.text_input(
+                    "Create a password (at least 12 characters)",
+                    type="password",
+                    key="signup_password_input",
+                )
+                signup_password_confirm = st.text_input(
+                    "Confirm password",
+                    type="password",
+                    key="signup_password_confirm_input",
+                )
+                signup_submitted = st.form_submit_button(
+                    "Create account",
+                    type="primary",
+                    width="stretch",
+                    disabled=not AUTH_CONFIGURED,
+                )
+
+            if signup_submitted:
+                clean_email = signup_email.strip()
+                if "@" not in clean_email or clean_email.startswith("@"):
+                    st.error("Enter a valid email address.")
+                elif len(signup_password) < 12:
+                    st.error("Choose a password with at least 12 characters.")
+                elif signup_password != signup_password_confirm:
+                    st.error("The passwords do not match.")
+                else:
+                    try:
+                        response = register_account(
+                            SUPABASE_URL,
+                            SUPABASE_ANON_KEY,
+                            clean_email,
+                            signup_password,
+                        )
+                        user = response["user"]
+                        has_active_session = bool(response.get("access_token"))
+                        save_activity(
+                            user["id"],
+                            clean_email,
+                            "Account created",
+                            defer_warning=True,
+                        )
+                        if has_active_session:
+                            st.session_state.is_authenticated = True
+                            st.session_state.authenticated_user = user.get("email", clean_email)
+                            st.session_state.authenticated_user_id = user["id"]
+                            st.session_state.clear_auth_inputs_on_rerun = True
+                            st.rerun()
+                        st.session_state.account_confirmation_message = (
+                            "Account created. Check your email to confirm the address, "
+                            "then sign in."
+                        )
+                        st.session_state.clear_auth_inputs_on_rerun = True
+                        st.rerun()
+                    except (ActivityStoreError, KeyError) as error:
+                        st.error(f"Account creation failed: {error}")
 
     st.markdown("### 👥 Project Credits / Contributors")
     credits_col1, credits_col2 = st.columns(2)
@@ -470,7 +646,17 @@ with st.sidebar:
     if st.button("Log out", key="logout_button", width="stretch"):
         st.session_state.is_authenticated = False
         st.session_state.authenticated_user = ""
+        st.session_state.authenticated_user_id = ""
         st.session_state.in_dashboard = False
+        st.session_state.team_audit_unlocked = False
+        st.session_state.user_activity_page = 0
+        st.session_state.team_activity_page = 0
+        st.session_state.total_ops = 0
+        st.session_state.chat_messages = [
+            {"role": "assistant", "content": CHATBOT_GREETING}
+        ]
+        for sensitive_key in SENSITIVE_SESSION_KEYS:
+            st.session_state.pop(sensitive_key, None)
         st.rerun()
 
     st.markdown("---")
@@ -563,12 +749,13 @@ else:
     )
 
     # Top Level Tabs (High-Visibility with Glowing Active State)
-    tab_dash, tab_hide, tab_extract, tab_benchmarks, tab_arch = st.tabs([
+    tab_dash, tab_hide, tab_extract, tab_benchmarks, tab_arch, tab_audit = st.tabs([
         "🎛️ Home Dashboard",
         "🔒 Conceal Payload (Hide)",
         "🔓 Extract & Verify (Recover)",
         "📊 Steganalysis & Benchmarks",
-        "🛡️ System Specs & Team"
+        "🛡️ System Specs & Team",
+        "🔎 Team Activity",
     ])
 
     # =====================================================================
@@ -828,54 +1015,50 @@ else:
 
         st.markdown("<div style='height: 2.2rem;'></div>", unsafe_allow_html=True)
 
-        # Recent Activity & Session Audit Log (PROFESSIONAL CYBER TERMINAL TABLE)
-        table_hdr_l, table_hdr_r = st.columns([3, 1])
-        with table_hdr_l:
-            st.markdown("### 📋 Covert Operations Audit Trail")
-            st.caption("Cryptographically authenticated session log detailing timestamps, target carriers, encryption routing, and SHA-256 verification.")
-        with table_hdr_r:
-            if st.button("🗑️ Reset Audit Trail", key="reset_audit_btn"):
-                st.session_state.op_history = []
-                st.rerun()
-
-        # Render sleek dark cyber table cleanly without markdown indentation
-        table_rows = []
-        if not st.session_state.op_history:
-            table_rows.append("<tr><td colspan='8' style='text-align:center; color:#94a3b8; padding:1.5rem;'>No operations recorded in this session.</td></tr>")
-        else:
-            for op in st.session_state.op_history:
-                badge_class = "tag-conceal" if op["Type"] == "Conceal" else "tag-extract"
-                integrity_html = (
-                    '<span class="tag-verified">● VERIFIED</span>'
-                    if op["Integrity"] == "VERIFIED"
-                    else '<span class="tag-tampered">▲ TAMPERED</span>'
+        st.markdown("### 📋 My activity")
+        st.caption("Your sign-ins and steganography operations. Payload text, passwords, and file contents are never stored in this log.")
+        activity_page = st.session_state.get("user_activity_page", 0)
+        try:
+            user_activity = get_user_activity(
+                SUPABASE_URL,
+                SUPABASE_SERVICE_ROLE_KEY,
+                st.session_state.authenticated_user_id,
+                offset=activity_page * 100,
+            )
+            if user_activity:
+                has_more_activity = len(user_activity) > 100
+                activity_df = pd.DataFrame(user_activity[:100]).rename(
+                    columns={
+                        "created_at": "Timestamp",
+                        "activity": "Activity",
+                        "operation": "Operation",
+                        "carrier": "Carrier",
+                        "codec": "Codec",
+                        "cipher": "Cipher",
+                        "payload_bits": "Payload bits",
+                        "integrity": "Integrity",
+                    }
                 )
-                r = (
-                    f"<tr>"
-                    f"<td style=\"font-family:'JetBrains Mono'; font-size:0.8rem; color:#94a3b8;\">{op['Time']}</td>"
-                    f"<td><span class=\"{badge_class}\">{op['Type'].upper()}</span></td>"
-                    f"<td style=\"font-weight:600;\">{op['Carrier']}</td>"
-                    f"<td style=\"color:#00d2ff; font-family:'JetBrains Mono'; font-size:0.8rem;\">{op['Codec']}</td>"
-                    f"<td><span style=\"background:rgba(255,255,255,0.06); padding:0.2rem 0.5rem; border-radius:4px; font-family:'JetBrains Mono'; font-size:0.75rem;\">{op['Cipher']}</span></td>"
-                    f"<td style=\"font-family:'JetBrains Mono'; font-weight:700;\">{op['Bits']}</td>"
-                    f"<td style=\"font-family:'JetBrains Mono'; font-size:0.75rem; color:#cbd5e1;\">{op.get('Hash', 'Verified')}</td>"
-                    f"<td>{integrity_html}</td>"
-                    f"</tr>"
-                )
-                table_rows.append(r)
-
-        rows_html = "".join(table_rows)
-        table_full = (
-            f"<div class=\"audit-table-wrap\">"
-            f"<table class=\"cyber-table\">"
-            f"<thead><tr>"
-            f"<th>Timestamp</th><th>Operation</th><th>Carrier Target</th><th>Codec Engine</th>"
-            f"<th>Cryptographic Cipher</th><th>Payload Bits</th><th>SHA-256 Digest</th><th>Integrity Verification</th>"
-            f"</tr></thead>"
-            f"<tbody>{rows_html}</tbody>"
-            f"</table></div>"
-        )
-        render_html(table_full)
+                st.dataframe(activity_df, hide_index=True, width="stretch")
+                previous_col, next_col = st.columns(2)
+                if previous_col.button(
+                    "Previous activity",
+                    disabled=activity_page == 0,
+                    key="previous_user_activity",
+                ):
+                    st.session_state.user_activity_page -= 1
+                    st.rerun()
+                if next_col.button(
+                    "Next activity",
+                    disabled=not has_more_activity,
+                    key="next_user_activity",
+                ):
+                    st.session_state.user_activity_page = activity_page + 1
+                    st.rerun()
+            else:
+                st.info("No activity has been recorded for your account yet.")
+        except ActivityStoreError as error:
+            st.error(f"Could not load your activity: {error}")
 
 
     # =====================================================================
@@ -930,9 +1113,15 @@ else:
             secret_message = st.text_area(
                 "Secret payload text to conceal:",
                 height=140,
-                placeholder="Type your confidential communication here..."
+                placeholder="Type your confidential communication here...",
+                key="secret_message_input",
             )
-            secret_password = st.text_input("Master encryption key (Password):", type="password", placeholder="Strong passphrase...")
+            secret_password = st.text_input(
+                "Master encryption key (Password):",
+                type="password",
+                placeholder="Strong passphrase...",
+                key="secret_password_input",
+            )
 
             if secret_message:
                 p_entropy = message_entropy(secret_message)
@@ -1026,16 +1215,17 @@ else:
 
                 # Log operation
                 st.session_state.total_ops += 1
-                st.session_state.op_history.insert(0, {
-                    "Time": datetime.now().strftime("%H:%M:%S"),
-                    "Type": "Conceal",
-                    "Carrier": f"{cover_type}",
-                    "Codec": f"{embed_method}",
-                    "Cipher": f"{algo}",
-                    "Bits": f"{len(secret_message)*8:,}",
-                    "Hash": f"{msg_hash[:8]}...{msg_hash[-3:]}",
-                    "Integrity": "VERIFIED",
-                })
+                save_activity(
+                    st.session_state.authenticated_user_id,
+                    st.session_state.authenticated_user,
+                    "Steganography operation",
+                    operation="Conceal",
+                    carrier=cover_type,
+                    codec=embed_method,
+                    cipher=algo,
+                    payload_bits=len(secret_message) * 8,
+                    integrity="VERIFIED",
+                )
 
                 st.success("✅ Payload encrypted, signed, and concealed successfully!", icon="🛡️")
                 st.download_button(
@@ -1116,16 +1306,17 @@ else:
 
                     # Log operation
                     st.session_state.total_ops += 1
-                    st.session_state.op_history.insert(0, {
-                        "Time": datetime.now().strftime("%H:%M:%S"),
-                        "Type": "Extract",
-                        "Carrier": f"{extract_type}",
-                        "Codec": f"{embed_method}",
-                        "Cipher": f"{algo}",
-                        "Bits": f"{len(decrypted)*8:,}",
-                        "Hash": f"{recomputed_hash[:8]}...{recomputed_hash[-3:]}",
-                        "Integrity": "VERIFIED" if recomputed_hash == stored_hash else "TAMPERED",
-                    })
+                    save_activity(
+                        st.session_state.authenticated_user_id,
+                        st.session_state.authenticated_user,
+                        "Steganography operation",
+                        operation="Extract",
+                        carrier=extract_type,
+                        codec=embed_method,
+                        cipher=algo,
+                        payload_bits=len(decrypted) * 8,
+                        integrity="VERIFIED" if recomputed_hash == stored_hash else "TAMPERED",
+                    )
 
                 except Exception as ex:
                     st.error(f"Extraction failed: Wrong password, corrupted hidden carrier, or unsupported format. ({str(ex)})")
@@ -1274,3 +1465,76 @@ else:
 
         st.markdown("<div style='height: 1.5rem;'></div>", unsafe_allow_html=True)
         st.info("🎓 **Academic Project Focus**: Agentic AI-Driven Multi-Modal Steganography & Resilient Covert Communications (Engineering Final Year Capstone).")
+
+    with tab_audit:
+        st.markdown("### 🔎 Team activity audit")
+        st.caption(
+            "The four configured team accounts can review account and operation activity "
+            "after entering the shared audit passphrase."
+        )
+        signed_in_email = st.session_state.authenticated_user.casefold()
+        if signed_in_email not in TEAM_AUDIT_EMAILS:
+            st.error("This account is not on the team audit allowlist.")
+        elif not TEAM_AUDIT_PASSWORD:
+            st.error("Team audit access is not configured by the deployment owner.")
+        elif len(TEAM_AUDIT_PASSWORD) < 16:
+            st.error("The configured team audit passphrase must be at least 16 characters.")
+        elif not st.session_state.team_audit_unlocked:
+            with st.form("team_audit_unlock_form"):
+                audit_password = st.text_input(
+                    "Team audit passphrase",
+                    type="password",
+                    key="team_audit_password_input",
+                )
+                audit_submitted = st.form_submit_button(
+                    "Unlock team activity", type="primary"
+                )
+            if audit_submitted:
+                if hmac.compare_digest(audit_password, TEAM_AUDIT_PASSWORD):
+                    st.session_state.team_audit_unlocked = True
+                    st.rerun()
+                else:
+                    st.error("Incorrect team audit passphrase.")
+        else:
+            activity_page = st.session_state.get("team_activity_page", 0)
+            try:
+                team_activity = get_team_activity(
+                    SUPABASE_URL,
+                    SUPABASE_SERVICE_ROLE_KEY,
+                    offset=activity_page * 100,
+                )
+                if team_activity:
+                    has_more_activity = len(team_activity) > 100
+                    team_activity_df = pd.DataFrame(team_activity[:100]).rename(
+                        columns={
+                            "created_at": "Timestamp",
+                            "user_email": "Email",
+                            "activity": "Activity",
+                            "operation": "Operation",
+                            "carrier": "Carrier",
+                            "codec": "Codec",
+                            "cipher": "Cipher",
+                            "payload_bits": "Payload bits",
+                            "integrity": "Integrity",
+                        }
+                    )
+                    st.dataframe(team_activity_df, hide_index=True, width="stretch")
+                    previous_col, next_col = st.columns(2)
+                    if previous_col.button(
+                        "Previous activity",
+                        disabled=activity_page == 0,
+                        key="previous_team_activity",
+                    ):
+                        st.session_state.team_activity_page -= 1
+                        st.rerun()
+                    if next_col.button(
+                        "Next activity",
+                        disabled=not has_more_activity,
+                        key="next_team_activity",
+                    ):
+                        st.session_state.team_activity_page = activity_page + 1
+                        st.rerun()
+                else:
+                    st.info("No activity has been recorded yet.")
+            except ActivityStoreError as error:
+                st.error(f"Could not load team activity: {error}")

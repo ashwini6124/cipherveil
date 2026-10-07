@@ -90,6 +90,9 @@ celerybeat-schedule
 # dotenv
 .env
 .venv
+.streamlit (2)/
+.streamlit (2).zip
+.streamlit.zip
 
 # virtualenv
 venv/
